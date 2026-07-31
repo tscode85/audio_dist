@@ -1,0 +1,41 @@
+# file: pyproject.toml
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acoustic-gap"
+version = "0.1.0"
+description = "Offline toolkit to quantify the acoustic domain gap between real and simulated audio."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+]
+
+[project.optional-dependencies]
+full = [
+    "torch",
+    "torchaudio",
+    "transformers",
+    "librosa",
+    "soundfile",
+    "POT",
+    "matplotlib",
+    "PyYAML",
+    "fadtk",
+]
+test = ["pytest", "soundfile", "PyYAML"]
+
+[project.scripts]
+acoustic-gap = "acoustic_gap.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["acoustic_gap*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

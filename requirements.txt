@@ -1,0 +1,36 @@
+# file: requirements.txt
+# Pinned dependencies for the acoustic-gap toolkit.
+# Versions are chosen to be mutually compatible and to work fully offline once
+# model checkpoints are vendored (see setup/download_models.py).
+#
+# NOTE: install on a networked machine, then ship the environment + model_cache
+# to the air-gapped host. Nothing below reaches the network at runtime.
+
+# --- core numerics / audio I/O ---
+numpy==1.26.4
+scipy==1.11.4
+pandas==2.1.4
+soundfile==0.12.1
+librosa==0.10.1
+
+# --- deep-learning backbones ---
+torch==2.1.2
+torchaudio==2.1.2
+transformers==4.36.2        # provides Wav2Vec2FeatureExtractor + WavLMForXVector
+
+# --- Frechet Audio Distance / PANN / VGGish embeddings ---
+# Use ONE of the following FAD backends (fadtk is the primary path):
+fadtk==0.1.6
+# frechet_audio_distance==1.2.0   # alternative backend (uncomment if preferred)
+
+# --- optimal transport (multivariate Wasserstein / EMD) ---
+POT==0.9.1
+
+# --- reporting / plotting ---
+matplotlib==3.8.2
+
+# --- config ---
+PyYAML==6.0.1
+
+# --- testing ---
+pytest==7.4.4

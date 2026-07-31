@@ -1,0 +1,53 @@
+# file: config/default.yaml
+# Default configuration for the acoustic-gap toolkit.
+# All paths are LOCAL — no network access is used at runtime.
+
+real_dir: null          # set to your real-audio directory, or pass --real
+sim_dir: null           # set to your simulated-audio directory, or pass --sim
+log_level: INFO
+
+preprocess:
+  target_sample_rate: 16000
+  window_seconds: 3.0
+  hop_seconds: 1.5        # overlap = window - hop = 1.5s
+  mono: true
+  pad_short_clips: true
+  min_clip_seconds: 0.5
+  drop_silence: true
+  silence_rms_dbfs: -50.0
+  peak_normalize: true
+
+features:
+  backbones: [panns, wavlm]   # content-invariant + channel-sensitive
+  panns_checkpoint: null      # local fadtk cache dir (optional)
+  vggish_checkpoint: null
+  wavlm_local_dir: ./model_cache/wavlm-base-plus-sv   # local HF snapshot
+  wavlm_model_name: microsoft/wavlm-base-plus-sv
+  device: cpu
+  batch_size: 8
+  fadtk_model: panns-wavegram-logmel
+
+pooling:
+  strategy: mean          # "mean" or "rnn"
+  rnn_hidden_size: 128
+  rnn_num_layers: 1
+  rnn_bidirectional: true
+  disentangle: false      # set true (with content_label_column present) to strip content
+  content_label_column: content_label
+  disentangle_ridge_alpha: 1.0
+
+distances:
+  metrics: [fad, mmd, wasserstein]
+  mmd_kernel: rbf
+  mmd_bandwidth: median   # "median" heuristic or a float sigma
+  wasserstein_backend: sliced   # "sliced" (scales) or "pot" (exact EMD)
+  sliced_n_projections: 128
+  max_samples: 2000
+  random_seed: 0
+
+report:
+  output_dir: acoustic_gap_report
+  condition_column: condition
+  make_plots: true
+  headline_backbone: wavlm       # channel-sensitive backbone drives the headline
+  headline_metric: wasserstein
