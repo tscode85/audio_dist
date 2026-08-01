@@ -47,8 +47,7 @@ class AcousticGapPipeline:
             manifest = build_manifest(
                 cfg.real_dir, cfg.sim_dir, cfg.preprocess
             )
-        if len(manifest) == 0:
-            raise RuntimeError("No audio segments produced; check input directories.")
+        self._check_manifest(manifest)
 
         extractors = build_extractors(cfg.features)
         results: List[GapResult] = []
@@ -59,6 +58,59 @@ class AcousticGapPipeline:
 
         report = save_report(results, cfg.report)
         return report
+
+    # ------------------------------------------------------------------
+    def _check_manifest(self, manifest: SegmentManifest) -> None:
+        """Fail fast (with actionable guidance) when a comparison is impossible.
+
+        Catches the common "counted samples, then produced nothing" situation:
+        one dataset yields no usable segments, or the real/sim condition labels
+        do not overlap, so there is no pair to compare.
+        """
+        from .preprocessing import AUDIO_EXTS
+
+        cfg = self.config
+        if len(manifest) == 0:
+            raise RuntimeError(
+                "No audio segments were produced from EITHER dataset. Check that "
+                f"--real / --sim point at directories containing audio files "
+                f"({sorted(AUDIO_EXTS)})."
+            )
+        df = manifest.df
+        n_real = int((df["dataset"] == "real").sum())
+        n_sim = int((df["dataset"] == "sim").sum())
+        if n_real == 0 or n_sim == 0:
+            empty = "sim" if n_sim == 0 else "real"
+            path = cfg.sim_dir if n_sim == 0 else cfg.real_dir
+            raise RuntimeError(
+                f"The '{empty}' dataset produced 0 usable segments "
+                f"(real={n_real}, sim={n_sim}); a real-vs-sim comparison needs "
+                f"both sides. Likely causes for '{path}':\n"
+                f"  * wrong path, or audio not one of {sorted(AUDIO_EXTS)} "
+                f"(matching is recursive and case-insensitive);\n"
+                f"  * every clip is shorter than preprocess.min_clip_seconds "
+                f"({cfg.preprocess.min_clip_seconds}s);\n"
+                f"  * everything was filtered as silence — try lowering "
+                f"preprocess.silence_rms_dbfs ({cfg.preprocess.silence_rms_dbfs} "
+                f"dBFS) or set preprocess.drop_silence=false."
+            )
+
+        # Warn (do not fail) when conditions do not overlap: the OVERALL score
+        # still works, but there will be no per-condition breakdown.
+        real_conds = set(df[df["dataset"] == "real"]["condition"])
+        sim_conds = set(df[df["dataset"] == "sim"]["condition"])
+        logger.info("Real conditions: %s", sorted(real_conds))
+        logger.info("Sim conditions:  %s", sorted(sim_conds))
+        shared = real_conds & sim_conds
+        if not shared:
+            logger.warning(
+                "Real and sim share NO condition labels (real=%s, sim=%s). Only the "
+                "OVERALL gap will be reported — there is no matched condition to "
+                "break down. Organise both dataset roots with the SAME "
+                "sub-directory names (e.g. real/clean, sim/clean) to get a "
+                "per-condition diagnosis.",
+                sorted(real_conds), sorted(sim_conds),
+            )
 
     # ------------------------------------------------------------------
     def _run_backbone(

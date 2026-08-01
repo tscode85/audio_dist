@@ -94,6 +94,29 @@ def build_report(
     """Assemble the structured report dict from raw results."""
     df = results_to_frame(results)
 
+    # Guard: no comparable (real vs sim) pairs were produced. Return a valid,
+    # explicit report instead of crashing on an empty/columnless frame.
+    if df.empty or "condition" not in df.columns:
+        logger.warning(
+            "No comparable real-vs-sim results were produced; writing an empty "
+            "report. Check that both datasets share condition labels and have "
+            "usable segments."
+        )
+        return {
+            "interpretation": LOWER_IS_BETTER_NOTE,
+            "headline": {
+                "backbone": cfg.headline_backbone,
+                "metric": cfg.headline_metric,
+                "largest_contributor": None,
+            },
+            "top_level_scores": {},
+            "per_condition_breakdown": {},
+            "note": (
+                "No overlapping real/sim data was found to compare. Ensure both "
+                "--real and --sim yield segments and share condition sub-directories."
+            ),
+        }
+
     # Top-level scores: the __overall__ condition per (backbone, metric).
     overall = df[df["condition"] == "__overall__"]
     top_level: Dict[str, Dict[str, float]] = {}
