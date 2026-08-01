@@ -11,6 +11,10 @@ per-condition breakdown, and flags the single largest contributor to the gap.
 > 📐 **For the math and theory** — how the domain gap is defined, why we measure
 > it in embedding space, the derivations of FAD / MMD / Wasserstein, and links to
 > every referenced paper — see **[docs/THEORY.md](docs/THEORY.md)**.
+>
+> 🏗️ **For the algorithm architecture & framework** — the pipeline stages, module
+> contracts, data schemas, extension points, and deployment topology (with
+> diagrams) — see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
