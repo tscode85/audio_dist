@@ -8,6 +8,10 @@ room/reverb, microphone response) drives the largest sim-to-real gap.
 It does not just emit one number: it reports a top-level score *and* a
 per-condition breakdown, and flags the single largest contributor to the gap.
 
+> 📐 **For the math and theory** — how the domain gap is defined, why we measure
+> it in embedding space, the derivations of FAD / MMD / Wasserstein, and links to
+> every referenced paper — see **[docs/THEORY.md](docs/THEORY.md)**.
+
 ---
 
 ## Why two backbones?
@@ -28,6 +32,9 @@ the headline "largest contributor" flag by default.
 - **MMD** — kernel two-sample distance (RBF kernel, median-heuristic bandwidth).
 - **Wasserstein** — per-dimension 1-D W1 (`scipy`) **and** a multivariate estimate
   (exact EMD via **POT**, or a scalable sliced-Wasserstein approximation).
+
+Full definitions, estimators, bandwidth/kernel choices, complexity, and
+interpretation caveats are in **[docs/THEORY.md](docs/THEORY.md)**.
 
 ---
 
