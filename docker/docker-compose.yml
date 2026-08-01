@@ -1,0 +1,39 @@
+# file: docker/docker-compose.yml
+# Convenience runner for the offline GPU image on an air-gapped host.
+#
+# Prereqs on the Ubuntu 24.04 host:
+#   * NVIDIA driver 580.x + NVIDIA Container Toolkit installed and configured
+#     (`sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`)
+#   * the image already loaded:  `docker load -i acoustic-gap-offline.tar.gz`
+#
+# Usage:
+#   REAL=/path/to/real SIM=/path/to/sim OUT=/path/to/report \
+#     docker compose -f docker/docker-compose.yml up
+services:
+  acoustic-gap:
+    image: acoustic-gap:offline
+    # GPU access via the NVIDIA Container Toolkit (Compose v2 device syntax).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ${REAL:-./data/real}:/data/real:ro
+      - ${SIM:-./data/sim}:/data/sim:ro
+      - ${OUT:-./report}:/data/report
+    command:
+      - run
+      - --config
+      - /app/config/offline_gpu.yaml
+      - --real
+      - /data/real
+      - --sim
+      - /data/sim
+      - --output-dir
+      - /data/report

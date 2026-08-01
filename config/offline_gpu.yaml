@@ -1,0 +1,55 @@
+# file: config/offline_gpu.yaml
+# Config for the offline GPU Docker image.
+# Paths point at weights baked into the image at build time (see docker/Dockerfile).
+# Nothing here touches the network at runtime.
+
+real_dir: /data/real     # bind-mount your real audio here (read-only)
+sim_dir: /data/sim       # bind-mount your simulated audio here (read-only)
+log_level: INFO
+
+preprocess:
+  target_sample_rate: 16000
+  window_seconds: 3.0
+  hop_seconds: 1.5
+  mono: true
+  pad_short_clips: true
+  min_clip_seconds: 0.5
+  drop_silence: true
+  silence_rms_dbfs: -50.0
+  peak_normalize: true
+
+features:
+  backbones: [panns, wavlm]
+  panns_checkpoint: null
+  vggish_checkpoint: null
+  # Baked into the image by setup/download_models.py at build time.
+  wavlm_local_dir: /opt/model_cache/wavlm-base-plus-sv
+  wavlm_model_name: microsoft/wavlm-base-plus-sv
+  device: cuda            # GPU inference (falls back to cpu if unavailable)
+  batch_size: 16
+  fadtk_model: panns-wavegram-logmel
+
+pooling:
+  strategy: mean
+  rnn_hidden_size: 128
+  rnn_num_layers: 1
+  rnn_bidirectional: true
+  disentangle: false
+  content_label_column: content_label
+  disentangle_ridge_alpha: 1.0
+
+distances:
+  metrics: [fad, mmd, wasserstein]
+  mmd_kernel: rbf
+  mmd_bandwidth: median
+  wasserstein_backend: sliced
+  sliced_n_projections: 128
+  max_samples: 2000
+  random_seed: 0
+
+report:
+  output_dir: /data/report
+  condition_column: condition
+  make_plots: true
+  headline_backbone: wavlm
+  headline_metric: wasserstein

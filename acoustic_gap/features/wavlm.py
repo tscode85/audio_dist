@@ -75,8 +75,15 @@ class WavLMXVectorEmbedding(FeatureExtractor):
                 "transformers + torch are required for the WavLM backbone."
             ) from exc
 
+        # Resolve device; fall back to CPU if CUDA was requested but is absent.
+        import torch as _torch
+
+        if self.device.startswith("cuda") and not _torch.cuda.is_available():
+            logger.warning("CUDA requested but unavailable; using CPU for WavLM.")
+            self.device = "cpu"
+
         source = self._source()
-        logger.info("Loading WavLM x-vector model from %s (offline)", source)
+        logger.info("Loading WavLM x-vector model from %s on %s (offline)", source, self.device)
         self._extractor = Wav2Vec2FeatureExtractor.from_pretrained(
             source, local_files_only=True
         )

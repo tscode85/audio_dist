@@ -140,6 +140,63 @@ python -m acoustic_gap.cli run --real real/ --sim sim/ --backbones dummy
 
 ---
 
+## Docker (on-prem, internet-denied GPU host)
+
+For an air-gapped Ubuntu 24.04 host with the **NVIDIA driver 580.x** series and
+the **NVIDIA Container Toolkit**, ship the toolkit as a self-contained image with
+all pip deps *and* model weights baked in. The CUDA 12.1 userspace in the image is
+forward-compatible with driver 580 (min driver for CUDA 12.1 is 530), and the
+container's CUDA userspace is independent of the host OS version.
+
+### 1. Build + export on a machine WITH internet
+
+```bash
+./docker/build_offline_image.sh          # builds acoustic-gap:offline, bakes weights,
+                                          # writes acoustic-gap-offline.tar.gz
+```
+
+This installs GPU `torch==2.1.2`/`torchaudio==2.1.2` from the cu121 wheels, the
+pinned requirements, then runs `setup/download_models.py` to vendor the WavLM
+x-vector + fadtk PANN/VGGish weights into `/opt/model_cache` inside the image.
+The final image sets `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` so the runtime
+container never touches the network.
+
+### 2. Transfer + load on the air-gapped host
+
+```bash
+# One-time host prep (NVIDIA Container Toolkit):
+sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+
+docker load -i acoustic-gap-offline.tar.gz
+```
+
+### 3. Run a comparison (GPU)
+
+```bash
+docker run --rm --gpus all \
+    -v /path/to/real:/data/real:ro \
+    -v /path/to/sim:/data/sim:ro \
+    -v /path/to/report:/data/report \
+    acoustic-gap:offline \
+    run --config /app/config/offline_gpu.yaml \
+        --real /data/real --sim /data/sim --output-dir /data/report
+```
+
+Or via Compose:
+
+```bash
+REAL=/path/to/real SIM=/path/to/sim OUT=/path/to/report \
+    docker compose -f docker/docker-compose.yml up
+```
+
+Verify GPU visibility inside the container with
+`docker run --rm --gpus all acoustic-gap:offline bash -c "nvidia-smi"`, and run the
+offline test suite with `docker run --rm acoustic-gap:offline test`. A CPU-only /
+dev image can be built with `DOWNLOAD_MODELS=0 ./docker/build_offline_image.sh`
+(WavLM auto-falls back to CPU when CUDA is absent).
+
+---
+
 ## Testing (no network, no weights)
 
 ```bash
