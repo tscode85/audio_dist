@@ -19,9 +19,14 @@ torchaudio==2.1.2
 transformers==4.36.2        # provides Wav2Vec2FeatureExtractor + WavLMForXVector
 
 # --- Frechet Audio Distance / PANN / VGGish embeddings ---
-# Use ONE of the following FAD backends (fadtk is the primary path):
-fadtk==0.1.6
-# frechet_audio_distance==1.2.0   # alternative backend (uncomment if preferred)
+# Use ONE of the following FAD backends (fadtk is the primary path).
+# fadtk 1.0.0 pins torch>=2.1.0,<2.2.0 and numpy<2, which is exactly why the
+# torch/numpy/transformers versions above are chosen — they all satisfy its
+# ranges. (fadtk >=1.0.2 requires torch>=2.3 + torchvision>=0.22, a much heavier
+# stack; stay on 1.0.0 unless you deliberately bump torch.)
+# Requires Python <3.12 (the CUDA base image ships Python 3.10).
+fadtk==1.0.0
+# frechet_audio_distance==0.3.4   # alternative backend (uncomment if preferred)
 
 # --- optimal transport (multivariate Wasserstein / EMD) ---
 POT==0.9.1
