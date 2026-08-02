@@ -211,6 +211,31 @@ dev image can be built with `DOWNLOAD_MODELS=0 ./docker/build_offline_image.sh`
 
 ---
 
+## Performance & memory (large corpora)
+
+The pipeline **streams**: it builds a metadata-only manifest, then processes one
+source file at a time — load → segment → embed → pool to a single utterance
+vector → discard the audio. Peak memory is therefore bounded by **one file's
+segments plus the compact per-utterance embeddings**, not by total dataset size,
+so many-hour real/sim corpora run without exhausting RAM. (Earlier versions held
+every segment's waveform in RAM at once, which OOM'd on ~100 h datasets.)
+
+Practical notes:
+
+- **Streaming granularity is one file.** A single *enormous* file (e.g. one
+  100‑hour WAV) is still decoded in full and can OOM on its own. Split very long
+  recordings into reasonably sized clips first; ordinary many-file datasets are
+  fine.
+- **`features.batch_size`** controls how many segments are pushed through a
+  backbone at once — lower it if a single large file's segment batch stresses GPU
+  memory; raise it for throughput.
+- **`distances.max_samples`** caps the inputs to the O(n²)/O(n³) estimators (MMD,
+  exact EMD) for tractability; the default sliced-Wasserstein backend scales
+  linearly and needs no cap.
+- Progress is logged every 500 utterances so long runs are observable.
+
+---
+
 ## Testing (no network, no weights)
 
 ```bash

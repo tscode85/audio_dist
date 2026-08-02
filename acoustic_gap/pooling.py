@@ -79,6 +79,22 @@ def _rnn_summarize(
 # ---------------------------------------------------------------------------
 # Public pooling API
 # ---------------------------------------------------------------------------
+def pool_one(
+    seg_emb: np.ndarray, cfg: PoolingConfig, seed: int = 0
+) -> np.ndarray:
+    """Pool a single utterance's segment embeddings into one vector.
+
+    Used by the streaming pipeline so segment embeddings never accumulate across
+    utterances. ``mean`` averages the segments; ``rnn`` runs the fixed GRU
+    summariser on the ordered sequence.
+    """
+    if seg_emb.shape[0] == 0:
+        raise ValueError("cannot pool an utterance with zero segments")
+    if cfg.strategy == "rnn":
+        return _rnn_summarize([seg_emb], cfg, seed=seed)[0].astype(np.float32)
+    return seg_emb.mean(axis=0).astype(np.float32)
+
+
 def pool_embeddings(
     embeddings: np.ndarray,
     df: pd.DataFrame,

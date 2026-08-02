@@ -222,6 +222,12 @@ skipped with a log line — only matched conditions yield a comparable distance.
   human summary.
 - **Determinism.** A single `random_seed` flows into subsampling, the RNN
   summarizer, and the sliced-Wasserstein projections, so runs are reproducible.
+- **Bounded memory (streaming).** `run()` builds a *metadata-only* manifest
+  (`keep_audio=False`) and processes one file at a time via `iter_utterances` —
+  load → embed with every backbone → pool to a single utterance vector → discard
+  the audio. Peak memory is one file's segments plus the compact utterance
+  embeddings, independent of corpus length. (Granularity is per file; split a
+  single multi-hour recording before running.)
 - **Tractability guards.** O(n²)/O(n³) estimators (MMD, exact EMD) subsample to
   `max_samples`; sliced-Wasserstein is the linear-time default for large sets.
 - **Offline enforcement.** WavLM loads with `local_files_only=True` and

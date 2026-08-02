@@ -225,6 +225,7 @@ def build_manifest(
     sim_dir: Optional[str | Path],
     cfg: PreprocessConfig,
     condition_map: Optional[Dict[str, str]] = None,
+    keep_audio: bool = True,
 ) -> SegmentManifest:
     """Preprocess both datasets into a single :class:`SegmentManifest`.
 
@@ -238,6 +239,13 @@ def build_manifest(
     condition_map:
         Optional override mapping ``source_path -> condition`` for datasets whose
         conditions cannot be inferred from directory structure.
+    keep_audio:
+        When ``True`` (default) the segment waveforms are held in memory — fine
+        for small datasets and unit tests. When ``False`` only per-segment
+        *metadata* is retained (the audio is reloaded on demand during feature
+        extraction via :func:`iter_utterances`), which keeps peak memory bounded
+        to a single file regardless of total dataset size. The pipeline uses
+        ``keep_audio=False`` for large (many-hour) corpora.
     """
     rows: List[dict] = []
     audio: Dict[int, np.ndarray] = {}
@@ -265,8 +273,6 @@ def build_manifest(
                 level = rms_dbfs(seg_wav)
                 if cfg.drop_silence and level < cfg.silence_rms_dbfs:
                     continue
-                if cfg.peak_normalize:
-                    seg_wav = peak_normalize(seg_wav)
                 rows.append(
                     {
                         "segment_id": seg_id,
@@ -280,8 +286,12 @@ def build_manifest(
                         "condition": condition,
                     }
                 )
-                audio[seg_id] = seg_wav.astype(np.float32)
+                if keep_audio:
+                    if cfg.peak_normalize:
+                        seg_wav = peak_normalize(seg_wav)
+                    audio[seg_id] = seg_wav.astype(np.float32)
                 seg_id += 1
+            del wav  # release the file's samples before moving on
 
     df = pd.DataFrame(rows, columns=["segment_id"] + MANIFEST_COLUMNS)
     logger.info(
@@ -291,3 +301,45 @@ def build_manifest(
         int((df["dataset"] == "sim").sum()) if len(df) else 0,
     )
     return SegmentManifest(df, audio)
+
+
+def iter_utterances(
+    manifest: SegmentManifest,
+    cfg: PreprocessConfig,
+) -> "Iterable[Tuple[str, pd.DataFrame, List[np.ndarray]]]":
+    """Yield ``(source_path, rows, segment_waveforms)`` one utterance at a time.
+
+    This is the memory-bounded access path used by the streaming pipeline. For
+    each source file it yields only that file's segments, so at most one file's
+    audio is resident at any moment — total dataset size no longer drives peak
+    memory.
+
+    If the manifest was built with ``keep_audio=True`` the in-memory arrays are
+    reused; otherwise each file is reloaded from disk and re-segmented
+    deterministically (segmentation is a pure function of the config), and the
+    exact segments recorded in the manifest are selected by ``segment_index``.
+    """
+    df = manifest.df
+    if len(df) == 0:
+        return
+    for path, sub in df.groupby("source_path", sort=False):
+        sub = sub.sort_values("segment_index")
+        if manifest.audio:
+            audios = [manifest.audio[int(sid)] for sid in sub["segment_id"]]
+            yield str(path), sub, audios
+            continue
+        try:
+            wav = load_audio_mono(Path(path), cfg.target_sample_rate, cfg.mono)
+        except Exception as exc:  # pragma: no cover - depends on codec
+            logger.warning("Failed to reload %s during streaming: %s", path, exc)
+            continue
+        segs = segment_signal(wav, cfg.target_sample_rate, cfg)
+        audios = []
+        for idx in sub["segment_index"]:
+            if idx < len(segs):
+                a = segs[idx][2]
+                if cfg.peak_normalize:
+                    a = peak_normalize(a)
+                audios.append(a.astype(np.float32))
+        del wav
+        yield str(path), sub, audios

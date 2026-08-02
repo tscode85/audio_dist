@@ -3,12 +3,15 @@
 
 Flow::
 
-    config -> preprocess (manifest) -> per-backbone embeddings
-           -> pool (+ optional disentangle) -> distances (overall + per condition)
-           -> report (JSON/CSV/plot + largest-contributor flag)
+    config -> preprocess (lightweight manifest, metadata only)
+           -> STREAM utterances: load one file, embed with every backbone,
+              pool to a single utterance vector, discard the audio
+           -> distances (overall + per condition) -> report
 
-The runner is deliberately backbone- and metric-agnostic: it iterates whatever
-the config selects, so PANN/VGGish and WavLM are measured side by side.
+Streaming keeps peak memory bounded to a single file plus the (compact)
+utterance embeddings, so multi-hour corpora do not OOM. The runner is
+backbone- and metric-agnostic: it measures whatever the config selects, so
+PANN/VGGish and WavLM are computed side by side in the same pass over the data.
 """
 from __future__ import annotations
 
@@ -21,8 +24,8 @@ import pandas as pd
 from .config import AppConfig
 from .distances import compute_distances
 from .features import build_extractors
-from .pooling import disentangle_content, pool_embeddings
-from .preprocessing import SegmentManifest, build_manifest
+from .pooling import disentangle_content, pool_one
+from .preprocessing import SegmentManifest, build_manifest, iter_utterances
 from .reporting import GapResult, save_report
 
 logger = logging.getLogger(__name__)
@@ -44,20 +47,79 @@ class AcousticGapPipeline:
         """Execute the full pipeline and return the structured report dict."""
         cfg = self.config
         if manifest is None:
+            # Metadata-only manifest: bounded memory regardless of corpus size.
             manifest = build_manifest(
-                cfg.real_dir, cfg.sim_dir, cfg.preprocess
+                cfg.real_dir, cfg.sim_dir, cfg.preprocess, keep_audio=False
             )
         self._check_manifest(manifest)
 
         extractors = build_extractors(cfg.features)
-        results: List[GapResult] = []
+        utt_emb, utt_df = self._stream_embed_pool(extractors, manifest)
 
-        for name, extractor in extractors.items():
-            logger.info("=== Backbone: %s ===", name)
-            results.extend(self._run_backbone(name, extractor, manifest))
+        results: List[GapResult] = []
+        for name in extractors:
+            U = utt_emb[name]
+            if cfg.pooling.disentangle:
+                U = disentangle_content(U, utt_df, cfg.pooling)
+            results.extend(self._distances_for(name, OVERALL, U, utt_df))
+            cond_col = cfg.report.condition_column
+            if cond_col in utt_df.columns:
+                for condition in sorted(utt_df[cond_col].unique()):
+                    mask = (utt_df[cond_col] == condition).to_numpy()
+                    results.extend(
+                        self._distances_for(name, str(condition), U[mask], utt_df[mask])
+                    )
 
         report = save_report(results, cfg.report)
         return report
+
+    # ------------------------------------------------------------------
+    def _stream_embed_pool(self, extractors, manifest: SegmentManifest):
+        """Single streaming pass: per utterance, embed with every backbone and
+        pool to one vector. Bounds peak memory to one file's segments plus the
+        accumulated (small) utterance embeddings.
+        """
+        cfg = self.config
+        names = list(extractors)
+        pooled: Dict[str, List[np.ndarray]] = {n: [] for n in names}
+        meta_rows: List[dict] = []
+
+        n_files = manifest.df["source_path"].nunique()
+        logger.info("Streaming %d utterances through backbones %s", n_files, names)
+
+        for i, (path, rows, audios) in enumerate(iter_utterances(manifest, cfg.preprocess)):
+            if not audios:  # all of this file's segments failed to reload
+                continue
+            first = rows.iloc[0]
+            row = {
+                "source_path": path,
+                "dataset": first["dataset"],
+                "condition": first["condition"],
+                "n_segments": len(audios),
+            }
+            if cfg.pooling.content_label_column in rows.columns:
+                row[cfg.pooling.content_label_column] = first[cfg.pooling.content_label_column]
+            meta_rows.append(row)
+
+            for name in names:
+                seg_emb = extractors[name].embed_all(
+                    audios, batch_size=cfg.features.batch_size
+                )
+                pooled[name].append(
+                    pool_one(seg_emb, cfg.pooling, seed=cfg.distances.random_seed)
+                )
+            if (i + 1) % 500 == 0:
+                logger.info("  ... embedded %d/%d utterances", i + 1, n_files)
+
+        utt_df = pd.DataFrame(meta_rows)
+        utt_emb = {
+            n: (np.stack(v, axis=0).astype(np.float32) if v
+                else np.zeros((0, 0), dtype=np.float32))
+            for n, v in pooled.items()
+        }
+        for n in names:
+            logger.info("%s: utterance embeddings %s", n, utt_emb[n].shape)
+        return utt_emb, utt_df
 
     # ------------------------------------------------------------------
     def _check_manifest(self, manifest: SegmentManifest) -> None:
@@ -111,39 +173,6 @@ class AcousticGapPipeline:
                 "per-condition diagnosis.",
                 sorted(real_conds), sorted(sim_conds),
             )
-
-    # ------------------------------------------------------------------
-    def _run_backbone(
-        self, name: str, extractor, manifest: SegmentManifest
-    ) -> List[GapResult]:
-        cfg = self.config
-        df = manifest.df
-        waveforms = manifest.audio_batch(df["segment_id"].tolist())
-
-        seg_emb = extractor.embed_all(waveforms, batch_size=cfg.features.batch_size)
-        logger.info("%s: segment embeddings %s", name, seg_emb.shape)
-
-        # Pool to utterance level.
-        utt_emb, utt_df = pool_embeddings(seg_emb, df, cfg.pooling, seed=cfg.distances.random_seed)
-
-        # Optional content disentanglement (channel-sensitive backbones benefit).
-        if cfg.pooling.disentangle:
-            utt_emb = disentangle_content(utt_emb, utt_df, cfg.pooling)
-
-        results: List[GapResult] = []
-        # Overall gap.
-        results.extend(self._distances_for(name, OVERALL, utt_emb, utt_df))
-
-        # Per-condition gap: only conditions present in BOTH datasets are
-        # meaningful; others are reported when at least real or sim has data.
-        cond_col = cfg.report.condition_column
-        if cond_col in utt_df.columns:
-            for condition in sorted(utt_df[cond_col].unique()):
-                mask = utt_df[cond_col] == condition
-                results.extend(
-                    self._distances_for(name, str(condition), utt_emb[mask.to_numpy()], utt_df[mask])
-                )
-        return results
 
     # ------------------------------------------------------------------
     def _distances_for(
