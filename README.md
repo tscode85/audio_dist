@@ -11,6 +11,10 @@ per-condition breakdown, and flags the single largest contributor to the gap.
 > ⚡ **Just want the gist?** A one-page, paper-style pseudocode + equations
 > summary is in **[docs/ALGORITHM.md](docs/ALGORITHM.md)**.
 >
+> 📊 **How do I read the output?** Metric-by-metric interpretation, scales, what
+> you may/may-not compare, and how to calibrate — see
+> **[docs/INTERPRETING_RESULTS.md](docs/INTERPRETING_RESULTS.md)**.
+>
 > 📐 **For the math and theory** — how the domain gap is defined, why we measure
 > it in embedding space, the derivations of FAD / MMD / Wasserstein, and links to
 > every referenced paper — see **[docs/THEORY.md](docs/THEORY.md)**.
