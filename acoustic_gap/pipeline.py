@@ -46,6 +46,15 @@ class AcousticGapPipeline:
     ) -> Dict:
         """Execute the full pipeline and return the structured report dict."""
         cfg = self.config
+
+        # Build and eagerly validate backbones FIRST: an unknown fadtk model or a
+        # missing offline checkpoint should fail in seconds, not after a long
+        # preprocessing pass over the whole corpus.
+        extractors = build_extractors(cfg.features)
+        for name, extractor in extractors.items():
+            logger.info("Loading backbone '%s' ...", name)
+            extractor.ensure_ready()
+
         if manifest is None:
             # Metadata-only manifest: bounded memory regardless of corpus size.
             manifest = build_manifest(
@@ -53,7 +62,6 @@ class AcousticGapPipeline:
             )
         self._check_manifest(manifest)
 
-        extractors = build_extractors(cfg.features)
         utt_emb, utt_df = self._stream_embed_pool(extractors, manifest)
 
         results: List[GapResult] = []

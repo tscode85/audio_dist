@@ -87,7 +87,7 @@ pip install -r requirements.txt          # pinned versions
 python setup/download_models.py \
     --cache-dir ./model_cache \
     --wavlm microsoft/wavlm-base-plus-sv \
-    --fadtk-model panns-wavegram-logmel
+    --fadtk-model vggish
 ```
 
 This snapshots the WavLM x-vector model (feature extractor + weights) to

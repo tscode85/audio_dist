@@ -42,7 +42,7 @@ class FadtkEmbedding(FeatureExtractor):
 
     def __init__(
         self,
-        model_name: str = "panns-wavegram-logmel",
+        model_name: str = "vggish",
         checkpoint_dir: Optional[str] = None,
         sample_rate: int = 16000,
         device: str = "cpu",
@@ -68,14 +68,21 @@ class FadtkEmbedding(FeatureExtractor):
         models = {m.name: m for m in get_all_models()}
         if self.model_name not in models:
             raise ValueError(
-                f"fadtk model '{self.model_name}' not found. Available: "
-                f"{sorted(models)}"
+                f"fadtk model '{self.model_name}' is not provided by the installed "
+                f"fadtk version. Available models: {sorted(models)}. "
+                f"Note: the pinned fadtk==1.0.0 ships 'vggish' (not PANN); set "
+                f"features.fadtk_model to an available name, or install "
+                f"fadtk>=1.1.0 (which needs torch>=2.3) to get 'panns-*' models."
             )
         model = models[self.model_name]
         model.load_model()  # loads weights from local cache
         self._model = model
         self._sample_rate = getattr(model, "sr", self._sample_rate)
         return model
+
+    def ensure_ready(self) -> None:
+        """Load the fadtk model now so a bad name / missing weights fails fast."""
+        self._lazy_model()
 
     @property
     def sample_rate(self) -> int:  # type: ignore[override]
@@ -137,6 +144,9 @@ class FrechetAudioDistanceEmbedding(FeatureExtractor):
     @property
     def sample_rate(self) -> int:  # type: ignore[override]
         return self._sample_rate
+
+    def ensure_ready(self) -> None:
+        self._lazy_model()
 
     def _lazy_model(self):
         if self._fad is not None:

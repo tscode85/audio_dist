@@ -10,14 +10,14 @@
 #   IMAGE      image tag            (default: acoustic-gap:offline)
 #   OUTPUT     output tar.gz path   (default: acoustic-gap-offline.tar.gz)
 #   WAVLM      WavLM model id       (default: microsoft/wavlm-base-plus-sv)
-#   FADTK      fadtk model name     (default: panns-wavegram-logmel)
+#   FADTK      fadtk model name     (default: vggish; fadtk==1.0.0 has no PANN)
 #   DOWNLOAD_MODELS  1|0            (default: 1 — bake weights into the image)
 set -euo pipefail
 
 IMAGE="${IMAGE:-acoustic-gap:offline}"
 OUTPUT="${OUTPUT:-acoustic-gap-offline.tar.gz}"
 WAVLM="${WAVLM:-microsoft/wavlm-base-plus-sv}"
-FADTK="${FADTK:-panns-wavegram-logmel}"
+FADTK="${FADTK:-vggish}"
 DOWNLOAD_MODELS="${DOWNLOAD_MODELS:-1}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

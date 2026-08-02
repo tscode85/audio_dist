@@ -16,7 +16,7 @@ What it fetches
 Usage
 -----
     python setup/download_models.py --cache-dir ./model_cache \
-        --wavlm microsoft/wavlm-base-plus-sv --fadtk-model panns-wavegram-logmel
+        --wavlm microsoft/wavlm-base-plus-sv --fadtk-model vggish
 
 Then on the air-gapped host, set in your config:
     features.wavlm_local_dir: <cache-dir>/wavlm-base-plus-sv
@@ -69,7 +69,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--cache-dir", default="./model_cache")
     ap.add_argument("--wavlm", default="microsoft/wavlm-base-plus-sv")
-    ap.add_argument("--fadtk-model", default="panns-wavegram-logmel")
+    ap.add_argument("--fadtk-model", default="vggish")  # fadtk==1.0.0 provides vggish
     ap.add_argument("--skip-wavlm", action="store_true")
     ap.add_argument("--skip-fadtk", action="store_true")
     args = ap.parse_args()

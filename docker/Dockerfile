@@ -49,7 +49,7 @@ RUN python -m pip install -e .
 # Toggle with `--build-arg DOWNLOAD_MODELS=0` for a CPU/dev image without weights.
 ARG DOWNLOAD_MODELS=1
 ARG WAVLM_MODEL=microsoft/wavlm-base-plus-sv
-ARG FADTK_MODEL=panns-wavegram-logmel
+ARG FADTK_MODEL=vggish
 RUN if [ "$DOWNLOAD_MODELS" = "1" ]; then \
         python setup/download_models.py \
             --cache-dir "$MODEL_CACHE" \

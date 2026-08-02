@@ -92,6 +92,10 @@ class WavLMXVectorEmbedding(FeatureExtractor):
         model.to(self.device)
         self._model = model
 
+    def ensure_ready(self) -> None:
+        """Load the WavLM model now so a missing offline snapshot fails fast."""
+        self._lazy_load()
+
     @property
     def embedding_dim(self) -> int:
         if self._dim is None:

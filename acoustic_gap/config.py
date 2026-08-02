@@ -47,7 +47,11 @@ class FeatureConfig:
     """Selects and configures embedding backbones."""
 
     # Any subset of {"panns", "vggish", "wavlm"}. Both may run for comparison.
-    backbones: List[str] = field(default_factory=lambda: ["panns", "wavlm"])
+    # NOTE: the pinned fadtk==1.0.0 ships VGGish (not PANN) as its audio-tagging
+    # backbone, so "vggish" is the default content-invariant view. A true PANN
+    # model ("panns-wavegram-logmel") requires fadtk>=1.1.0 (torch>=2.3); if you
+    # bump that stack, set backbones=["panns", ...] and fadtk_model accordingly.
+    backbones: List[str] = field(default_factory=lambda: ["vggish", "wavlm"])
     # Local checkpoint locations (populated by setup/download_models.py).
     panns_checkpoint: Optional[str] = None
     vggish_checkpoint: Optional[str] = None
@@ -56,8 +60,9 @@ class FeatureConfig:
     wavlm_model_name: str = "microsoft/wavlm-base-plus-sv"
     device: str = "cpu"  # "cpu" or "cuda"
     batch_size: int = 8
-    # fadtk model name if the fadtk backend is used (e.g. "panns-wavegram-logmel").
-    fadtk_model: str = "panns-wavegram-logmel"
+    # fadtk model name for the audio-tagging backbone. Must be one that the
+    # installed fadtk version provides (fadtk==1.0.0 -> "vggish").
+    fadtk_model: str = "vggish"
 
 
 @dataclass

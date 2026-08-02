@@ -44,6 +44,16 @@ class FeatureExtractor(abc.ABC):
             Array shaped ``(len(waveforms), embedding_dim)``.
         """
 
+    def ensure_ready(self) -> None:
+        """Eagerly load/validate the model so failures surface immediately.
+
+        The pipeline calls this *before* the (potentially long) preprocessing
+        pass, so a missing offline checkpoint or an unknown model name fails in
+        seconds instead of after building a large manifest. Backbones with lazy
+        loading override this to trigger the load; the default is a no-op.
+        """
+        return None
+
     def embed_all(
         self, waveforms: Sequence[np.ndarray], batch_size: int = 8
     ) -> np.ndarray:
