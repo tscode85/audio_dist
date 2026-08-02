@@ -5,8 +5,8 @@ Implements three complementary metrics, all *lower-is-better*:
 
 * **FAD** (Fréchet Audio Distance) — Gaussian (Fréchet) distance between the two
   embedding distributions. Computed in closed form from means/covariances here,
-  and (optionally) directly via ``fadtk`` for a directory-vs-directory reference
-  number in :func:`fad_via_fadtk`.
+  and (optionally) directly via ``frechet_audio_distance`` for a directory-vs-
+  directory reference number in :func:`fad_via_frechet_audio_distance`.
 * **MMD** (Maximum Mean Discrepancy) — kernel two-sample distance. Uses an RBF
   kernel with the median-heuristic bandwidth by default (a robust, standard,
   parameter-free choice). Returns MMD^2 (unbiased estimator).
@@ -179,24 +179,31 @@ def wasserstein_pot(
 
 
 # ---------------------------------------------------------------------------
-# FAD via fadtk (directory reference)
+# FAD via frechet_audio_distance (directory reference)
 # ---------------------------------------------------------------------------
-def fad_via_fadtk(
-    real_dir: str, sim_dir: str, model_name: str = "panns-wavegram-logmel"
+def fad_via_frechet_audio_distance(
+    real_dir: str,
+    sim_dir: str,
+    ckpt_dir: str,
+    model_name: str = "pann",
+    sample_rate: int = 16000,
 ) -> float:
-    """Directory-vs-directory FAD computed directly by ``fadtk`` (offline).
+    """Directory-vs-directory FAD computed directly by ``frechet_audio_distance``.
 
-    This is the "official" FAD number; the closed-form :func:`frechet_distance`
-    on our own embeddings is used elsewhere for parity across backbones/metrics.
+    This is the "official" FAD number (PANN Cnn14 by default); the closed-form
+    :func:`frechet_distance` on our own embeddings is used elsewhere for parity
+    across backbones/metrics. ``ckpt_dir`` is the vendored local weight folder.
     """
     try:
-        from fadtk import FrechetAudioDistance  # type: ignore
-        from fadtk.model_loader import get_all_models  # type: ignore
+        from frechet_audio_distance import FrechetAudioDistance  # type: ignore
     except Exception as exc:  # pragma: no cover
-        raise ImportError("fadtk is required for fad_via_fadtk.") from exc
-    models = {m.name: m for m in get_all_models()}
-    model = models[model_name]
-    fad = FrechetAudioDistance(model, audio_load_worker=1, load_model=True)
+        raise ImportError(
+            "frechet_audio_distance is required for fad_via_frechet_audio_distance."
+        ) from exc
+    fad = FrechetAudioDistance(
+        ckpt_dir=ckpt_dir, model_name=model_name, sample_rate=sample_rate,
+        use_pca=False, use_activation=False, verbose=False,
+    )
     return float(fad.score(real_dir, sim_dir))
 
 

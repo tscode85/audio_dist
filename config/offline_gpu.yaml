@@ -19,16 +19,16 @@ preprocess:
   peak_normalize: true
 
 features:
-  # PANN (content-invariant) + WavLM x-vector (channel-sensitive).
+  # PANN (content-invariant, Cnn14) + WavLM x-vector (channel-sensitive).
   backbones: [panns, wavlm]
-  panns_checkpoint: null
-  vggish_checkpoint: null
   # Baked into the image by setup/download_models.py at build time.
+  panns_checkpoint: /opt/model_cache/fad_ckpt      # PANN Cnn14 weight dir
+  vggish_checkpoint: /opt/model_cache/fad_ckpt
   wavlm_local_dir: /opt/model_cache/wavlm-base-plus-sv
   wavlm_model_name: microsoft/wavlm-base-plus-sv
   device: cuda            # GPU inference (falls back to cpu if unavailable)
   batch_size: 16
-  fadtk_model: panns-wavegram-logmel
+  fadtk_model: pann       # unused (kept for backward compat)
 
 pooling:
   strategy: mean

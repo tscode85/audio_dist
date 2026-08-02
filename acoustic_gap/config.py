@@ -47,11 +47,11 @@ class FeatureConfig:
     """Selects and configures embedding backbones."""
 
     # Any subset of {"panns", "vggish", "wavlm"}. Both may run for comparison.
-    # Default content-invariant view is PANN ("panns-wavegram-logmel"), provided
-    # by fadtk>=1.1.0 (pinned in requirements.txt). Switch to "vggish" if you run
-    # a fadtk build without the PANN model.
+    # "panns" is real PANN (Cnn14) via frechet_audio_distance; "vggish" is VGGish
+    # via the same package; "wavlm" is the WavLM x-vector.
     backbones: List[str] = field(default_factory=lambda: ["panns", "wavlm"])
-    # Local checkpoint locations (populated by setup/download_models.py).
+    # Local checkpoint directory holding the pre-downloaded FAD/PANN weight
+    # (from setup/download_models.py). REQUIRED for the PANN backbone offline.
     panns_checkpoint: Optional[str] = None
     vggish_checkpoint: Optional[str] = None
     # Local HF snapshot directory for the WavLM x-vector model.
@@ -59,9 +59,9 @@ class FeatureConfig:
     wavlm_model_name: str = "microsoft/wavlm-base-plus-sv"
     device: str = "cpu"  # "cpu" or "cuda"
     batch_size: int = 8
-    # fadtk model name for the audio-tagging backbone. Must be one that the
-    # installed fadtk version provides (fadtk>=1.1.0 -> "panns-wavegram-logmel").
-    fadtk_model: str = "panns-wavegram-logmel"
+    # Deprecated / unused (the FAD backend selects PANN vs VGGish from the
+    # backbone name). Kept for backward-compatible config loading.
+    fadtk_model: str = "pann"
 
 
 @dataclass

@@ -10,14 +10,16 @@
 #   IMAGE      image tag            (default: acoustic-gap:offline)
 #   OUTPUT     output tar.gz path   (default: acoustic-gap-offline.tar.gz)
 #   WAVLM      WavLM model id       (default: microsoft/wavlm-base-plus-sv)
-#   FADTK      fadtk model name     (default: panns-wavegram-logmel)
+#   FAD_MODEL  FAD backbone         (default: pann; or vggish)
+#   FAD_SR     sample rate          (default: 16000; picks the Cnn14 variant)
 #   DOWNLOAD_MODELS  1|0            (default: 1 — bake weights into the image)
 set -euo pipefail
 
 IMAGE="${IMAGE:-acoustic-gap:offline}"
 OUTPUT="${OUTPUT:-acoustic-gap-offline.tar.gz}"
 WAVLM="${WAVLM:-microsoft/wavlm-base-plus-sv}"
-FADTK="${FADTK:-panns-wavegram-logmel}"
+FAD_MODEL="${FAD_MODEL:-pann}"
+FAD_SR="${FAD_SR:-16000}"
 DOWNLOAD_MODELS="${DOWNLOAD_MODELS:-1}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,7 +30,8 @@ docker build \
     -f docker/Dockerfile \
     --build-arg DOWNLOAD_MODELS="$DOWNLOAD_MODELS" \
     --build-arg WAVLM_MODEL="$WAVLM" \
-    --build-arg FADTK_MODEL="$FADTK" \
+    --build-arg FAD_MODEL="$FAD_MODEL" \
+    --build-arg FAD_SR="$FAD_SR" \
     -t "$IMAGE" \
     .
 

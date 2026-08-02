@@ -25,7 +25,7 @@ per-condition breakdown, and flags the single largest contributor to the gap.
 
 | Backbone | Role | What it captures |
 |----------|------|------------------|
-| **PANN / VGGish** (via `fadtk`/`frechet_audio_distance`) | content-invariant | general spectro-temporal texture; "does this sound real?" |
+| **PANN (Cnn14) / VGGish** (via `frechet_audio_distance`) | content-invariant | general spectro-temporal texture; "does this sound real?" |
 | **WavLM x-vector** (`transformers` `WavLMForXVector`) | channel-sensitive | mic colouration, reverb, noise floor — the recording chain |
 
 Running both side-by-side lets you separate *content* differences from
@@ -35,7 +35,7 @@ the headline "largest contributor" flag by default.
 ## Metrics (all lower-is-better)
 
 - **FAD** — Fréchet distance between Gaussians fit to the two embedding sets
-  (closed form here; also computable directly via `fadtk` directory-vs-directory).
+  (closed form here; also computable directly via `frechet_audio_distance` directory-vs-directory).
 - **MMD** — kernel two-sample distance (RBF kernel, median-heuristic bandwidth).
 - **Wasserstein** — per-dimension 1-D W1 (`scipy`) **and** a multivariate estimate
   (exact EMD via **POT**, or a scalable sliced-Wasserstein approximation).
@@ -53,7 +53,7 @@ acoustic_gap/
   preprocessing.py   # resample, mono, segment (overlap), silence filter, manifest
   features/
     base.py          # FeatureExtractor abstract interface (swappable backbones)
-    panns.py         # PANN/VGGish via fadtk / frechet_audio_distance
+    panns.py         # PANN (Cnn14) / VGGish via frechet_audio_distance
     wavlm.py         # WavLM x-vector via transformers (local, offline)
     dummy.py         # dependency-free backbone for tests / dry-runs
   pooling.py         # mean pool (default) or RNN summariser; content disentangle
@@ -87,11 +87,12 @@ pip install -r requirements.txt          # pinned versions
 python setup/download_models.py \
     --cache-dir ./model_cache \
     --wavlm microsoft/wavlm-base-plus-sv \
-    --fadtk-model panns-wavegram-logmel
+    --fad-model pann --fad-sr 16000
 ```
 
 This snapshots the WavLM x-vector model (feature extractor + weights) to
-`./model_cache/wavlm-base-plus-sv` and warms the `fadtk` PANN/VGGish cache.
+`./model_cache/wavlm-base-plus-sv` and vendors the PANN (Cnn14) checkpoint to
+`./model_cache/fad_ckpt`. Point `features.panns_checkpoint` at that folder.
 
 ### 2. Ship to the air-gapped host
 
@@ -171,8 +172,8 @@ container's CUDA userspace is independent of the host OS version.
 
 This installs GPU `torch==2.7.0`/`torchvision==0.22.0`/`torchaudio==2.7.0` from
 the CUDA 12.6 wheels (forward-compatible with driver 580), the pinned
-requirements (`fadtk==1.1.0` for the PANN model), then runs
-`setup/download_models.py` to vendor the WavLM x-vector + fadtk PANN weights into
+requirements (`frechet_audio_distance` for the PANN model), then runs
+`setup/download_models.py` to vendor the WavLM x-vector + PANN (Cnn14) weights into
 `/opt/model_cache` inside the image.
 The final image sets `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` so the runtime
 container never touches the network.
@@ -267,8 +268,8 @@ end-to-end pipeline run) using the `dummy` backbone.
   deterministic and dependency-light; it removes first-order (linearly decodable)
   content leakage only.
 - **FAD:** computed in closed form on our own embeddings for parity across
-  backbones/metrics, with a direct `fadtk` directory-vs-directory reference
-  available in `distances.fad_via_fadtk`.
+  backbones/metrics, with a direct `frechet_audio_distance` directory-vs-directory
+  reference available in `distances.fad_via_frechet_audio_distance`.
 - **Config over pydantic:** plain dataclasses avoid an extra vendored runtime
   dependency; validation is explicit in `AppConfig.validate`.
 ```

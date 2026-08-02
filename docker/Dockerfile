@@ -4,17 +4,17 @@
 #
 # BUILD this on a machine WITH internet access. It bakes in:
 #   * all pinned pip dependencies (GPU torch/torchvision/torchaudio via the
-#     CUDA 12.6 wheels — self-contained, they bundle their own CUDA runtime)
-#   * the WavLM x-vector weights + fadtk PANN weights (vendored into
-#     /opt/model_cache), so the runtime container needs NO network at all.
+#     CUDA 12.1 wheels — self-contained, they bundle their own CUDA runtime)
+#   * the WavLM x-vector weights + the PANN (Cnn14) FAD checkpoint (vendored
+#     into /opt/model_cache), so the runtime container needs NO network at all.
 # Then `docker save` the image and load it on the air-gapped host.
 #
 # Runtime target: Ubuntu 24.04 host with the NVIDIA driver 580.x series and the
-# NVIDIA Container Toolkit installed. The torch 2.7.0 cu126 wheels bundle the
-# CUDA 12.6 runtime and only need the host driver (580 >> the 560 minimum for
-# CUDA 12.6) supplied by the container toolkit — so the base image's own CUDA
-# version is not what torch uses. The container userspace is independent of the
-# host's Ubuntu version, so a 22.04-based base runs fine on a 24.04 host.
+# NVIDIA Container Toolkit installed. The torch 2.1.2 cu121 wheels bundle the
+# CUDA 12.1 runtime and only need the host driver (580 is far newer than the 530
+# minimum for CUDA 12.1) supplied by the container toolkit — so the base image's
+# own CUDA version is not what torch uses. The container userspace is independent
+# of the host's Ubuntu version, so a 22.04-based base runs fine on a 24.04 host.
 # ---------------------------------------------------------------------------
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
@@ -35,12 +35,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # --- Python dependencies (pinned). Install GPU torch/torchvision/torchaudio
-#     from the CUDA 12.6 index first, then the rest of the pinned requirements. ---
+#     from the CUDA 12.1 index first, then the rest of the pinned requirements. ---
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip \
     && python -m pip install \
-        --index-url https://download.pytorch.org/whl/cu126 \
-        torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 \
+        --index-url https://download.pytorch.org/whl/cu121 \
+        torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
     && python -m pip install -r /app/requirements.txt
 
 # --- Application code ---
@@ -51,12 +51,14 @@ RUN python -m pip install -e .
 # Toggle with `--build-arg DOWNLOAD_MODELS=0` for a CPU/dev image without weights.
 ARG DOWNLOAD_MODELS=1
 ARG WAVLM_MODEL=microsoft/wavlm-base-plus-sv
-ARG FADTK_MODEL=panns-wavegram-logmel
+ARG FAD_MODEL=pann
+ARG FAD_SR=16000
 RUN if [ "$DOWNLOAD_MODELS" = "1" ]; then \
         python setup/download_models.py \
             --cache-dir "$MODEL_CACHE" \
             --wavlm "$WAVLM_MODEL" \
-            --fadtk-model "$FADTK_MODEL" ; \
+            --fad-model "$FAD_MODEL" \
+            --fad-sr "$FAD_SR" ; \
     else \
         echo "Skipping model download (DOWNLOAD_MODELS=$DOWNLOAD_MODELS)"; \
     fi

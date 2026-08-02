@@ -14,21 +14,25 @@ soundfile==0.12.1
 librosa==0.10.1
 
 # --- deep-learning backbones ---
-# fadtk 1.1.0 (which provides the PANN "panns-wavegram-logmel" model) requires
-# torch>=2.3 + torchvision>=0.22; torchvision 0.22.0 pins torch==2.7.0, so the
-# whole trio is aligned at 2.7.0. Install these from the CUDA 12.6 wheel index
-# (see docker/Dockerfile) — CUDA 12.6 is forward-compatible with NVIDIA driver
-# 580. numpy stays <2 (fadtk requirement).
-torch==2.7.0
-torchvision==0.22.0
-torchaudio==2.7.0
-transformers==4.49.0        # Wav2Vec2FeatureExtractor + WavLMForXVector; torch-2.7 compatible
+# The PyPI `fadtk` package does NOT implement PANN (any version). Real PANN
+# (Kong et al. Cnn14) is provided by `frechet_audio_distance` as
+# model_name="pann", which has loose torch pins — so we stay on the proven,
+# lightweight torch 2.1.2 (cu121) stack. torchvision is required by
+# frechet_audio_distance; 0.16.2 is the torch-2.1.2-compatible release.
+torch==2.1.2
+torchvision==0.16.2
+torchaudio==2.1.2
+transformers==4.36.2        # provides Wav2Vec2FeatureExtractor + WavLMForXVector
 
 # --- Frechet Audio Distance / PANN / VGGish embeddings ---
-# fadtk is the primary FAD backend. 1.1.0 ships PANN ("panns-wavegram-logmel")
-# and VGGish; Python <=3.13,>=3.10 (the CUDA base image ships Python 3.10).
-fadtk==1.1.0
-# frechet_audio_distance==0.3.4   # alternative backend (uncomment if preferred)
+# frechet_audio_distance is the FAD backend. model_name="pann" loads Cnn14
+# (16 kHz variant); model_name="vggish" loads VGGish. It imports laion_clap and
+# encodec at module load, so those (and torchlibrosa for the PANN model) are
+# pinned explicitly. Python >=3.10 (the CUDA base image ships Python 3.10).
+frechet_audio_distance==0.3.4
+laion-clap==1.1.7
+encodec==0.1.1
+torchlibrosa==0.1.0
 
 # --- optimal transport (multivariate Wasserstein / EMD) ---
 POT==0.9.1

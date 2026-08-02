@@ -14,29 +14,38 @@ logger = logging.getLogger(__name__)
 __all__ = ["FeatureExtractor", "DummyEmbedding", "build_extractors"]
 
 
-def build_extractors(cfg: FeatureConfig) -> Dict[str, FeatureExtractor]:
+def build_extractors(
+    cfg: FeatureConfig, sample_rate: int = 16000
+) -> Dict[str, FeatureExtractor]:
     """Instantiate the configured backbones.
 
     Returns an ordered mapping ``name -> FeatureExtractor``. Unknown or
     unavailable heavy backbones raise at *use* time (lazy import), not here, so a
-    dry-run with the dummy backbone never pulls in torch/fadtk.
+    dry-run with the dummy backbone never pulls in torch or the FAD stack.
+
+    ``sample_rate`` is the pipeline's common rate; it selects the matching PANN
+    Cnn14 variant (16 kHz by default).
     """
     extractors: Dict[str, FeatureExtractor] = {}
     for name in cfg.backbones:
         if name == "panns":
-            from .panns import FadtkEmbedding
+            from .panns import FrechetAudioDistanceEmbedding
 
-            extractors[name] = FadtkEmbedding(
-                model_name=cfg.fadtk_model,
+            # Real PANN (Cnn14) via frechet_audio_distance, loaded offline from
+            # the vendored checkpoint directory.
+            extractors[name] = FrechetAudioDistanceEmbedding(
+                model_name="pann",
                 checkpoint_dir=cfg.panns_checkpoint,
+                sample_rate=sample_rate,
                 device=cfg.device,
             )
         elif name == "vggish":
-            from .panns import FadtkEmbedding
+            from .panns import FrechetAudioDistanceEmbedding
 
-            extractors[name] = FadtkEmbedding(
+            extractors[name] = FrechetAudioDistanceEmbedding(
                 model_name="vggish",
                 checkpoint_dir=cfg.vggish_checkpoint,
+                sample_rate=sample_rate,
                 device=cfg.device,
             )
         elif name == "wavlm":

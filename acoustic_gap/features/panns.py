@@ -119,11 +119,22 @@ class FadtkEmbedding(FeatureExtractor):
 
 
 class FrechetAudioDistanceEmbedding(FeatureExtractor):
-    """Wraps the ``frechet_audio_distance`` package (VGGish/PANN/CLAP).
+    """PANN / VGGish embeddings via the ``frechet_audio_distance`` package.
 
-    Used when ``frechet_audio_distance`` is preferred over ``fadtk``. It exposes
-    ``get_embeddings`` over file lists; here we route in-memory arrays through
-    temporary WAV files to keep the common interface.
+    This is the real PANN path: ``model_name="pann"`` loads Kong et al.'s Cnn14
+    (the 16 kHz ``Cnn14_16k`` variant at 16 kHz, matching this toolkit's default
+    pipeline) and yields 2048-dim content-invariant embeddings.
+
+    Offline use: the underlying package looks for its checkpoint under
+    ``ckpt_dir`` and only downloads it (from Zenodo) if absent. Vendor the weight
+    once with ``setup/download_models.py`` and point ``checkpoint_dir`` at that
+    folder — nothing hits the network at runtime.
+
+    Notes
+    -----
+    We call the loaded model directly (not the package's ``get_embeddings``,
+    which concatenates PANN's per-clip vectors into a flat 1-D array). The
+    package moves the model to CUDA automatically when available.
     """
 
     def __init__(
@@ -155,37 +166,57 @@ class FrechetAudioDistanceEmbedding(FeatureExtractor):
             from frechet_audio_distance import FrechetAudioDistance  # type: ignore
         except Exception as exc:  # pragma: no cover
             raise ImportError(
-                "frechet_audio_distance is required for this backbone."
+                "frechet_audio_distance is required for the PANN/VGGish backbone. "
+                "Install it (see requirements.txt) and vendor the checkpoint with "
+                "setup/download_models.py."
             ) from exc
-        kwargs = dict(model_name=self.model_name, use_pca=False, use_activation=False, verbose=False)
+        if self.model_name == "pann" and not self.checkpoint_dir:
+            raise ValueError(
+                "PANN requires features.panns_checkpoint to point at the folder "
+                "holding the pre-downloaded Cnn14 weight (offline). Run "
+                "setup/download_models.py to vendor it."
+            )
         if self.checkpoint_dir:
-            kwargs["ckpt_dir"] = self.checkpoint_dir  # local weights
-        self._fad = FrechetAudioDistance(**kwargs)
+            import os
+
+            os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self._fad = FrechetAudioDistance(
+            ckpt_dir=self.checkpoint_dir,
+            model_name=self.model_name,
+            sample_rate=self._sample_rate,
+            use_pca=False,
+            use_activation=False,
+            verbose=False,
+        )
         return self._fad
 
     @property
     def embedding_dim(self) -> int:
         if self._dim is None:
-            # VGGish=128, PANN=2048 by convention; probe to be safe.
             probe = np.zeros(self._sample_rate, dtype=np.float32)
-            emb = self.embed_batch([probe])
-            self._dim = int(emb.shape[-1])
+            self._dim = int(self.embed_batch([probe]).shape[-1])
         return self._dim
 
     def embed_batch(self, waveforms: Sequence[np.ndarray]) -> np.ndarray:
-        import tempfile
-        from pathlib import Path
-
-        import soundfile as sf
+        import torch
 
         fad = self._lazy_model()
+        device = getattr(fad, "device", None)
         vecs = []
-        with tempfile.TemporaryDirectory() as tmp:
-            for i, wav in enumerate(waveforms):
-                p = Path(tmp) / f"seg_{i}.wav"
-                sf.write(str(p), np.asarray(wav, dtype=np.float32), self._sample_rate)
-                emb = np.asarray(fad.model.forward(str(p)) if hasattr(fad, "model") else fad.get_embeddings([str(p)], sr=self._sample_rate))
-                if emb.ndim == 2:
+        for wav in waveforms:
+            arr = np.asarray(wav, dtype=np.float32)
+            if self.model_name == "pann":
+                with torch.no_grad():
+                    t = torch.tensor(arr).float().unsqueeze(0)
+                    if device is not None:
+                        t = t.to(device)
+                    out = fad.model(t, None)
+                    emb = out["embedding"].data[0].cpu().numpy()  # (2048,)
+            elif self.model_name == "vggish":
+                emb = np.asarray(fad.model.forward(arr, self._sample_rate))
+                if emb.ndim == 2:  # (frames, 128) -> mean-pool to one vector
                     emb = emb.mean(axis=0)
-                vecs.append(np.asarray(emb, dtype=np.float32).reshape(-1))
+            else:  # pragma: no cover - other FAD models not wired here
+                raise ValueError(f"unsupported FAD model_name '{self.model_name}'")
+            vecs.append(np.asarray(emb, dtype=np.float32).reshape(-1))
         return np.stack(vecs, axis=0)

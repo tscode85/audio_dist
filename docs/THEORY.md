@@ -55,7 +55,7 @@ what sound is present, they learn a representation of general spectro-temporal
 *texture* that is largely invariant to fine linguistic content. This is the
 backbone FAD was originally defined on, and it answers: **"does this simulated
 clip sound like a plausible real-world sound?"** Implemented in
-`features/panns.py` via the `fadtk` toolkit (Gui et al. 2024).
+`features/panns.py` via the `frechet_audio_distance` package (PANN Cnn14).
 
 ### 2.2 Channel-sensitive view — WavLM x-vector
 
@@ -156,7 +156,7 @@ case (`frechet_distance`).
 - **Caveat:** it assumes a Gaussian in embedding space and is therefore *blind to
   higher moments*; the estimator is also known to be **biased upward at small
   sample sizes** (fewer clips ⇒ inflated FAD), so compare like-sized sets. The
-  `fadtk` directory-vs-directory number (`fad_via_fadtk`) is provided as the
+  `frechet_audio_distance` directory number (`fad_via_frechet_audio_distance`) is provided as the
   "canonical" reference computation.
 
 ### 5.2 MMD — kernel two-sample distance

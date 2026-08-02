@@ -47,10 +47,12 @@ class AcousticGapPipeline:
         """Execute the full pipeline and return the structured report dict."""
         cfg = self.config
 
-        # Build and eagerly validate backbones FIRST: an unknown fadtk model or a
+        # Build and eagerly validate backbones FIRST: an unknown model or a
         # missing offline checkpoint should fail in seconds, not after a long
         # preprocessing pass over the whole corpus.
-        extractors = build_extractors(cfg.features)
+        extractors = build_extractors(
+            cfg.features, sample_rate=cfg.preprocess.target_sample_rate
+        )
         for name, extractor in extractors.items():
             logger.info("Loading backbone '%s' ...", name)
             extractor.ensure_ready()

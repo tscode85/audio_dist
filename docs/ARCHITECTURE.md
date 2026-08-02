@@ -49,7 +49,7 @@ acoustic_gap/
 ├── preprocessing.py   # audio I/O, resample, mono, segment, silence filter → manifest
 ├── features/
 │   ├── base.py        # FeatureExtractor (ABC) — the backbone contract
-│   ├── panns.py       # PANN / VGGish via fadtk / frechet_audio_distance
+│   ├── panns.py       # PANN (Cnn14) / VGGish via frechet_audio_distance
 │   ├── wavlm.py       # WavLM x-vector via transformers (local, offline)
 │   ├── dummy.py       # dependency-free descriptor backbone (tests / dry-runs)
 │   └── __init__.py    # build_extractors(cfg) factory
@@ -85,7 +85,7 @@ class FeatureExtractor(abc.ABC):
 The pipeline never imports a concrete backbone; it calls `build_extractors(cfg)`
 (`features/__init__.py`), which instantiates whatever `cfg.features.backbones`
 lists. Heavy backbones import their deps **lazily** (on first `embed_batch`), so a
-`dummy`-only run never pulls in torch/fadtk.
+`dummy`-only run never pulls in torch or the FAD stack.
 
 > **Add a backbone** in three steps: (1) subclass `FeatureExtractor` and implement
 > `embed_batch` + `embedding_dim`; (2) register a branch in `build_extractors`;

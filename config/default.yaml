@@ -18,15 +18,14 @@ preprocess:
   peak_normalize: true
 
 features:
-  backbones: [panns, wavlm]   # content-invariant + channel-sensitive
-  panns_checkpoint: null      # local fadtk cache dir (optional)
-  vggish_checkpoint: null
+  backbones: [panns, wavlm]   # content-invariant (PANN Cnn14) + channel-sensitive
+  panns_checkpoint: ./model_cache/fad_ckpt   # PANN Cnn14 weight dir (required offline)
+  vggish_checkpoint: ./model_cache/fad_ckpt
   wavlm_local_dir: ./model_cache/wavlm-base-plus-sv   # local HF snapshot
   wavlm_model_name: microsoft/wavlm-base-plus-sv
   device: cpu
   batch_size: 8
-  # PANN model from fadtk>=1.1.0; use "vggish" if PANN is unavailable.
-  fadtk_model: panns-wavegram-logmel
+  fadtk_model: pann           # unused (kept for backward compat)
 
 pooling:
   strategy: mean          # "mean" or "rnn"
