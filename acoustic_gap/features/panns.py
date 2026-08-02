@@ -42,7 +42,7 @@ class FadtkEmbedding(FeatureExtractor):
 
     def __init__(
         self,
-        model_name: str = "vggish",
+        model_name: str = "panns-wavegram-logmel",
         checkpoint_dir: Optional[str] = None,
         sample_rate: int = 16000,
         device: str = "cpu",
@@ -70,9 +70,9 @@ class FadtkEmbedding(FeatureExtractor):
             raise ValueError(
                 f"fadtk model '{self.model_name}' is not provided by the installed "
                 f"fadtk version. Available models: {sorted(models)}. "
-                f"Note: the pinned fadtk==1.0.0 ships 'vggish' (not PANN); set "
-                f"features.fadtk_model to an available name, or install "
-                f"fadtk>=1.1.0 (which needs torch>=2.3) to get 'panns-*' models."
+                f"Set features.fadtk_model to an available name. PANN "
+                f"('panns-wavegram-logmel') requires fadtk>=1.1.0; 'vggish' is in "
+                f"every fadtk build."
             )
         model = models[self.model_name]
         model.load_model()  # loads weights from local cache

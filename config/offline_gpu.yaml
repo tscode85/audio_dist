@@ -19,8 +19,8 @@ preprocess:
   peak_normalize: true
 
 features:
-  # fadtk==1.0.0 provides VGGish (not PANN) as the audio-tagging backbone.
-  backbones: [vggish, wavlm]
+  # PANN (content-invariant) + WavLM x-vector (channel-sensitive).
+  backbones: [panns, wavlm]
   panns_checkpoint: null
   vggish_checkpoint: null
   # Baked into the image by setup/download_models.py at build time.
@@ -28,7 +28,7 @@ features:
   wavlm_model_name: microsoft/wavlm-base-plus-sv
   device: cuda            # GPU inference (falls back to cpu if unavailable)
   batch_size: 16
-  fadtk_model: vggish
+  fadtk_model: panns-wavegram-logmel
 
 pooling:
   strategy: mean

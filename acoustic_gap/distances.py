@@ -182,7 +182,7 @@ def wasserstein_pot(
 # FAD via fadtk (directory reference)
 # ---------------------------------------------------------------------------
 def fad_via_fadtk(
-    real_dir: str, sim_dir: str, model_name: str = "vggish"
+    real_dir: str, sim_dir: str, model_name: str = "panns-wavegram-logmel"
 ) -> float:
     """Directory-vs-directory FAD computed directly by ``fadtk`` (offline).
 

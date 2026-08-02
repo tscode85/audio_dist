@@ -87,7 +87,7 @@ pip install -r requirements.txt          # pinned versions
 python setup/download_models.py \
     --cache-dir ./model_cache \
     --wavlm microsoft/wavlm-base-plus-sv \
-    --fadtk-model vggish
+    --fadtk-model panns-wavegram-logmel
 ```
 
 This snapshots the WavLM x-vector model (feature extractor + weights) to
@@ -169,9 +169,11 @@ container's CUDA userspace is independent of the host OS version.
                                           # writes acoustic-gap-offline.tar.gz
 ```
 
-This installs GPU `torch==2.1.2`/`torchaudio==2.1.2` from the cu121 wheels, the
-pinned requirements, then runs `setup/download_models.py` to vendor the WavLM
-x-vector + fadtk PANN/VGGish weights into `/opt/model_cache` inside the image.
+This installs GPU `torch==2.7.0`/`torchvision==0.22.0`/`torchaudio==2.7.0` from
+the CUDA 12.6 wheels (forward-compatible with driver 580), the pinned
+requirements (`fadtk==1.1.0` for the PANN model), then runs
+`setup/download_models.py` to vendor the WavLM x-vector + fadtk PANN weights into
+`/opt/model_cache` inside the image.
 The final image sets `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` so the runtime
 container never touches the network.
 
