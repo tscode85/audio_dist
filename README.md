@@ -8,6 +8,10 @@ room/reverb, microphone response) drives the largest sim-to-real gap.
 It does not just emit one number: it reports a top-level score *and* a
 per-condition breakdown, and flags the single largest contributor to the gap.
 
+> 📚 **Everything in one place** — a single complete overview of the whole
+> project (architecture, algorithm, math, deployment, scaling, decisions,
+> limitations) is in **[docs/OVERVIEW.md](docs/OVERVIEW.md)**.
+>
 > ⚡ **Just want the gist?** A one-page, paper-style pseudocode + equations
 > summary is in **[docs/ALGORITHM.md](docs/ALGORITHM.md)**.
 >
